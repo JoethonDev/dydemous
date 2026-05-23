@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>معهد القديس ديديموس للمرتلين - دير المحرق العامر</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Scheherazade+New:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Supabase JS Client SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkblue: '#0c0c1d',
+                        purphaze: '#1a1a3e',
+                        goldprime: '#ffd700'
+                    },
+                    fontFamily: {
+                        cairo: ['Cairo', 'sans-serif'],
+                        scheherazade: ['Scheherazade New', 'serif']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #0c0c1d 0%, #1a1a3e 50%, #0d0d2b 100%);
+            min-height: 100vh;
+        }
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .particle {
+            position: absolute;
+            background: rgba(255, 215, 0, 0.25);
+            border-radius: 50%;
+            animation: floatUp linear infinite;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+        }
+        @keyframes loading {
+            0% { transform: translateX(200%); }
+            100% { transform: translateX(-200%); }
+        }
+        .star-burst {
+            position: fixed;
+            pointer-events: none;
+            z-index: 99999;
+            animation: burst 0.6s ease-out forwards;
+        }
+        @keyframes burst {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+        
+        .audio-player-bar {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(150px);
+            width: calc(100% - 40px);
+            max-width: 500px;
+            background: rgba(12, 12, 29, 0.95);
+            border: 1px solid #ffd700;
+            border-radius: 20px;
+            padding: 15px;
+            z-index: 15000;
+            transition: transform 0.4s ease;
+            backdrop-filter: blur(20px);
+            direction: ltr;
+        }
+        .audio-player-bar.active {
+            display: block !important;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body class="text-white overflow-x-hidden relative">
+
+    <div class="particles" id="particles"></div>
+
+    <!-- Splash Loading Layer -->
+    <div id="splash" class="fixed inset-0 bg-gradient-to-b from-[#1a1a3e] to-[#0a0a1a] z-[99999] flex flex-col items-center justify-center transition-all duration-700">
+        <div class="animate-pulse mb-6 drop-shadow-[0_0_25px_rgba(255,215,0,0.5)]">
+            <span class="text-8xl">✝️</span>
+        </div>
+        <h1 class="font-scheherazade text-4xl text-goldprime text-center mb-2">معهد القديس ديديموس للمرتلين</h1>
+        <p class="text-gray-400 text-sm font-light font-cairo">بجبل قسقام العامر - دير المحرق</p>
+        <div class="w-48 h-[3px] bg-white/10 rounded-full mt-6 overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-transparent via-goldprime to-transparent w-1/2 rounded-full animate-[loading_1.5s_infinite]"></div>
+        </div>
+    </div>
+
+    <!-- Auth Shield Gateway -->
+    <div id="authGateway" class="fixed inset-0 bg-darkblue/95 z-[88888] flex items-center justify-center p-4">
+        <div class="bg-white/5 border border-goldprime/30 p-8 rounded-3xl w-full max-w-md backdrop-blur-xl shadow-2xl">
+            <div class="flex gap-4 border-b border-white/10 pb-4 mb-6">
+                <button id="tabLogin" onclick="switchAuthMode('login')" class="flex-1 py-2 font-bold text-lg text-goldprime border-b-2 border-goldprime">تسجيل الدخول</button>
+                <button id="tabRegister" onclick="switchAuthMode('register')" class="flex-1 py-2 font-bold text-lg text-gray-400 transition-colors">حساب جديد</button>
+            </div>
+            
+            <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-goldprime text-sm font-semibold mb-2">البريد الإلكتروني</label>
+                    <input type="email" id="authEmail" class="w-full p-4 bg-black/40 border border-goldprime/20 rounded-xl text-white font-cairo focus:outline-none focus:border-goldprime" required placeholder="example@domain.com">
+                </div>
+                <div>
+                    <label class="block text-goldprime text-sm font-semibold mb-2">كلمة المرور</label>
+                    <input type="password" id="authPassword" class="w-full p-4 bg-black/40 border border-goldprime/20 rounded-xl text-white font-cairo focus:outline-none focus:border-goldprime" required minlength="6" placeholder="••••••••">
+                </div>
+                
+                <div id="registerMetaFields" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-goldprime text-sm font-semibold mb-2">الاسم ثلاثي أو رباعي</label>
+                        <input type="text" id="authFullName" class="w-full p-4 bg-black/40 border border-goldprime/20 rounded-xl text-white font-cairo focus:outline-none focus:border-goldprime" placeholder="أدخل اسمك بالكامل">
+                    </div>
+                    <div>
+                        <label class="block text-goldprime text-sm font-semibold mb-2">الفرقة الدراسية الحالية</label>
+                        <select id="authYearSelect" class="w-full p-4 bg-[#0c0c1d] border border-goldprime/20 rounded-xl text-white font-cairo focus:outline-none focus:border-goldprime">
+                            <option value="year1">الفرقة الأولى</option>
+                            <option value="year2">الفرقة الثانية</option>
+                            <option value="year3">الفرقة الثالثة</option>
+                            <option value="year4">الفرقة الرابعة</option>
+                            <option value="year5">الفرقة الخامسة</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full py-4 mt-2 bg-gradient-to-r from-goldprime to-amber-500 text-darkblue font-black rounded-xl hover:translate-y-[-2px] transition-transform duration-300 shadow-lg shadow-goldprime/20">تأكيد الهوية 🔑</button>
+            </form>
+            <div id="authMessage" class="mt-4 text-center text-sm text-goldprime font-semibold"></div>
+        </div>
+    </div>
+
+    <!-- Main Application UI Workspace -->
+    <div id="main" class="hidden min-h-screen p-4 md:p-8 max-w-7xl mx-auto z-10 relative">
+        
+        <!-- Premium Header Panel -->
+        <header class="bg-white/5 border border-goldprime/15 rounded-3xl p-6 mb-8 flex flex-col md:flex-row items-center justify-between backdrop-blur-xl gap-4">
+            <div class="flex items-center gap-4">
+                <span class="text-4xl">✝️</span>
+                <div class="text-right">
+                    <h1 class="font-scheherazade text-3xl md:text-4xl text-goldprime font-bold">معهد القديس ديديموس</h1>
+                    <p class="text-sm text-gray-400">بدير السيدة العذراء مريم المحرق العامر</p>
+                    <p id="headerUserWelcome" class="text-xs text-goldprime/80 mt-1 font-cairo font-semibold"></p>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap gap-3">
+                <button id="adminToggleControl" onclick="toggleAdminDashboard()" class="hidden bg-goldprime text-darkblue px-5 py-2.5 rounded-full font-bold text-sm shadow-lg hover:shadow-goldprime/30 hover:scale-105 transition-all">لوحة الإدارة ⚙️</button>
+                <button onclick="handleLogout()" class="bg-red-500/10 border border-red-500/30 text-red-400 px-5 py-2.5 rounded-full font-bold text-sm hover:bg-red-500 hover:text-white transition-all">خروج ✖</button>
+            </div>
+        </header>
+
+        <!-- Dynamic Admin Control Hub -->
+        <section id="adminDashboardLayout" class="hidden bg-black/50 border border-goldprime/40 rounded-3xl p-6 mb-8 space-y-6">
+            <div class="flex flex-col md:flex-row justify-between items-center border-b border-goldprime/20 pb-4 gap-4">
+                <h2 class="text-goldprime text-2xl font-bold font-scheherazade">⚙️ لوحة التحكم والإشراف الفوري للمعهد</h2>
+                <div class="flex gap-2">
+                    <button onclick="switchAdminSubTab('media')" id="subTabMediaBtn" class="bg-goldprime text-darkblue px-4 py-1.5 rounded-lg font-bold text-xs font-cairo">الملفات والمناهج</button>
+                    <button onclick="switchAdminSubTab('users')" id="subTabUsersBtn" class="bg-white/10 text-white px-4 py-1.5 rounded-lg font-bold text-xs font-cairo">الطلاب والمستخدمين</button>
+                    <button onclick="switchAdminSubTab('results')" id="subTabResultsBtn" class="bg-white/10 text-white px-4 py-1.5 rounded-lg font-bold text-xs font-cairo">نتائج ودرجات</button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 gap-6">
+                
+                <!-- Admin Tab 1: Syllabus Media CRUD -->
+                <div id="adminMediaPanel" class="admin-sub-panel grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-white/5 border border-white/10 p-5 rounded-2xl space-y-4 lg:col-span-1">
+                        <h3 class="text-goldprime font-bold text-md border-b border-white/10 pb-2">🎥 رفع وتوزيع ملف منهجي</h3>
+                        <form id="adminUploadForm" onsubmit="handleAdminUpload(event)" class="space-y-3">
+                            <select id="uploadYearKey" class="w-full p-2.5 bg-darkblue border border-white/10 rounded-lg text-sm text-white font-cairo" required>
+                                <option value="year1">الفرقة الأولى</option>
+                                <option value="year2">الفرقة الثانية</option>
+                                <option value="year3">الفرقة الثالثة</option>
+                                <option value="year4">الفرقة الرابعة</option>
+                                <option value="year5">الفرقة الخامسة</option>
+                            </select>
+                            <select id="uploadItemType" class="w-full p-2.5 bg-darkblue border border-white/10 rounded-lg text-sm text-white font-cairo" required>
+                                <option value="audio">ملف لحني مسموع (MP3)</option>
+                                <option value="pdf">كتيب ورقي أو طقوس (PDF)</option>
+                            </select>
+                            <input type="text" id="uploadItemName" placeholder="اسم الملف المعروض للطلاب..." class="w-full p-2.5 bg-darkblue border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-goldprime" required>
+                            <input type="file" id="uploadFileBinary" class="w-full text-xs text-gray-400" accept=".mp3,.pdf" required>
+                            
+                            <!-- Hidden File Upload Progress Node Failsafe -->
+                            <div id="progressBar" class="hidden text-xs text-goldprime animate-pulse">جاري معالجة ورفع الملف للسحابة...</div>
+                            
+                            <button type="submit" class="w-full py-2.5 bg-goldprime text-darkblue font-bold rounded-lg text-sm hover:scale-[1.02] transition-transform">رفع ونشر الملف 🚀</button>
+                        </form>
+                    </div>
+                    
+                    <div class="bg-white/5 border border-white/10 p-5 rounded-2xl lg:col-span-2">
+                        <h3 class="text-goldprime font-bold text-md border-b border-white/10 pb-2 mb-3">🗄️ قائمة المناهج المرفوعة حالياً</h3>
+                        <div id="adminMediaList" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Tab 2: Users Management (CRUD with Inline Edit) -->
+                <div id="adminUsersPanel" class="admin-sub-panel hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-white/5 border border-white/10 p-5 rounded-2xl space-y-4 lg:col-span-1">
+                        <h3 class="text-goldprime font-bold text-md border-b border-white/10 pb-2">👤 إضافة مستخدم جديد</h3>
+                        <form id="adminAddUserForm" onsubmit="handleAdminCreateUser(event)" class="space-y-3">
+                            <input type="email" id="newUserEmail" placeholder="البريد الإلكتروني..." class="w-full p-2.5 bg-darkblue border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-goldprime" required>
+                            <input type="password" id="newUserPassword" placeholder="كلمة المرور..." class="w-full p-2.5 bg-darkblue border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-goldprime" required minlength="6">
+                            <input type="text" id="newUserFullName" placeholder="الاسم الكامل للطالب..." class="w-full p-2.5 bg-darkblue border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-goldprime" required>
+                            <select id="newUserYear" class="w-full p-2.5 bg-darkblue border border-white/10 rounded-lg text-sm text-white font-cairo" required>
+                                <option value="year1">الفرقة الأولى</option>
+                                <option value="year2">الفرقة الثانية</option>
+                                <option value="year3">الفرقة الثالثة</option>
+                                <option value="year4">الفرقة الرابعة</option>
+                                <option value="year5">الفرقة الخامسة</option>
+                            </select>
+                            <select id="newUserRole" class="w-full p-2.5 bg-darkblue border border-white/10 rounded-lg text-sm text-white font-cairo" required>
+                                <option value="student">طالب منتسب</option>
+                                <option value="admin">مسؤول معهد (أدمن)</option>
+                            </select>
+                            <button type="submit" class="w-full py-2 bg-gradient-to-r from-goldprime to-amber-500 text-darkblue font-bold rounded-lg text-sm">إنشاء الحساب 💾</button>
+                        </form>
+                    </div>
+
+                    <div class="bg-white/5 border border-white/10 p-5 rounded-2xl lg:col-span-2">
+                        <div class="flex justify-between items-center border-b border-white/10 pb-2 mb-3">
+                            <h3 class="text-goldprime font-bold text-md font-scheherazade text-xl">👥 تعديل وتعديل سجلات الطلاب</h3>
+                            <input type="text" id="adminUserFilter" oninput="filterAdminUserList(this.value)" placeholder="تصفية بالاسم..." class="p-1 bg-darkblue border border-white/20 rounded text-xs text-white focus:outline-none font-cairo">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2" id="adminUsersList">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Tab 3: Exam Results (CSV CRUD & Controls) -->
+                <div id="adminResultsPanel" class="admin-sub-panel hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-white/5 border border-white/10 p-5 rounded-2xl space-y-4 lg:col-span-1">
+                        <h3 class="text-goldprime font-bold text-md border-b border-white/10 pb-2">📊 نتائج الاختبارات (CSV)</h3>
+                        
+                        <div class="space-y-3">
+                            <div class="p-4 bg-white/5 border border-dashed border-white/10 rounded-xl text-center">
+                                <p class="text-xs text-gray-400 mb-3 leading-relaxed">تأكت من مطابقة ملف الـ CSV للأعمدة:<br><strong class="text-goldprime font-mono">email, name, subject, grade, status</strong></p>
+                                <input type="file" id="csvFilePicker" accept=".csv" class="hidden" onchange="processResultsCSV(event)">
+                                <button onclick="document.getElementById('csvFilePicker').click()" class="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-lg text-sm transition-transform hover:scale-105">استيراد من ملف CSV 📁</button>
+                            </div>
+                            
+                            <div class="flex gap-2">
+                                <button onclick="toggleResultsSystem(true)" class="flex-1 py-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg text-xs font-bold hover:bg-blue-500/20 transition-all">تفعيل الدرجات</button>
+                                <button onclick="toggleResultsSystem(false)" class="flex-1 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-xs font-bold hover:bg-red-500/20 transition-all">إيقاف الحجب</button>
+                            </div>
+
+                            <button onclick="clearAllResults()" class="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors">مسح كلي للنتائج 🗑️</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white/5 border border-white/10 p-5 rounded-2xl lg:col-span-2">
+                        <div class="flex justify-between items-center border-b border-white/10 pb-2 mb-3">
+                            <h3 class="text-goldprime font-bold text-md">📈 درجات الاختبارات الحالية</h3>
+                            <input type="text" id="adminResultsFilter" oninput="filterAdminResultsList(this.value)" placeholder="بحث بالاسم..." class="p-1 bg-darkblue border border-white/20 rounded text-xs text-white focus:outline-none font-cairo">
+                        </div>
+                        <div id="adminResultsList" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
+                            <!-- Dynamic Results list -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Student Area / Application Workspace -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Student Navigation / Tab Content -->
+            <div class="lg:col-span-2 space-y-8">
+                
+                <!-- Main Tabs Switcher -->
+                <div class="flex border-b border-white/10 gap-2 md:gap-4 overflow-x-auto scrollbar-none">
+                    <button id="tabMySyllabusBtn" onclick="switchPortalTab('mySyllabus')" class="py-3 px-5 font-bold text-md md:text-lg text-goldprime border-b-2 border-goldprime whitespace-nowrap">المنهج الدراسي 📜</button>
+                    <button id="tabMyResultsBtn" onclick="switchPortalTab('myResults')" class="py-3 px-5 font-bold text-md md:text-lg text-gray-400 hover:text-white transition-colors whitespace-nowrap">كشف درجاتي 📊</button>
+                    <button id="tabSearchStudentsBtn" onclick="switchPortalTab('searchStudents')" class="py-3 px-5 font-bold text-md md:text-lg text-gray-400 hover:text-white transition-colors whitespace-nowrap">قائمة الطلاب 🔍</button>
+                </div>
+
+                <!-- Tab 1: Syllabus Course Content -->
+                <div id="paneMySyllabus" class="portal-tab-panel space-y-6">
+                    <div class="p-5 bg-goldprime/5 border border-goldprime/20 rounded-2xl flex items-center justify-between">
+                        <div>
+                            <span class="text-xs text-goldprime font-semibold">الفرقة الدراسية المخصصة لك</span>
+                            <h2 id="assignedYearLabel" class="text-2xl font-bold font-scheherazade text-goldprime mt-1">جاري التحميل...</h2>
+                        </div>
+                        <span class="text-4xl">📚</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Documents Cards -->
+                        <div class="bg-white/5 border border-white/10 rounded-2xl p-6">
+                            <h3 class="text-goldprime font-bold text-xl font-scheherazade mb-4 border-b border-white/10 pb-2">📚 المناهج والمحاضرات (PDF)</h3>
+                            <div id="userPdfsList" class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                                <!-- Load PDFs dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Audio Library Player Cards -->
+                        <div class="bg-white/5 border border-white/10 rounded-2xl p-6">
+                            <h3 class="text-goldprime font-bold text-xl font-scheherazade mb-4 border-b border-white/10 pb-2">🎵 الحفظ والتسجيلات المسموعة</h3>
+                            <div id="userAudiosList" class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                                <!-- Load Audios dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Personal Exam Results Lookup -->
+                <div id="paneMyResults" class="portal-tab-panel hidden space-y-6">
+                    <div class="bg-white/5 border border-white/10 rounded-2xl p-6">
+                        <h3 class="text-goldprime font-bold text-2xl font-scheherazade mb-4 border-b border-white/10 pb-2">📊 نتائج ودرجات الطالب في الاختبارات الرسمية</h3>
+                        <div id="resultsContentBlock" class="space-y-4">
+                            <!-- Dynamic grades fetched from server will fall here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Student Search Database -->
+                <div id="paneSearchStudents" class="portal-tab-panel hidden space-y-6">
+                    <div class="bg-white/5 border border-white/10 rounded-2xl p-6">
+                        <h3 class="text-goldprime font-bold text-2xl font-scheherazade mb-4">🔍 أرشيف وقائمة طلاب المعهد</h3>
+                        <input type="text" id="rosterSearchQuery" oninput="queryStudentRoster(this.value)" placeholder="ابحث عن اسم زميل لك..." class="w-full p-4 bg-black/40 border border-goldprime/20 rounded-xl text-white font-cairo focus:outline-none focus:border-goldprime">
+                        
+                        <div id="rosterResults" class="mt-4 space-y-2 max-h-96 overflow-y-auto pr-2">
+                            <p class="text-center text-gray-500 py-6">اكتب اسماً في حقل البحث للبدء...</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Side Card Information Panels -->
+            <div class="space-y-6">
+                <div class="bg-gradient-to-br from-purphaze to-[#0c0c1d] border border-goldprime/20 rounded-3xl p-6 text-center shadow-xl">
+                    <div class="w-20 h-20 bg-goldprime/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-goldprime/30">
+                        <span class="text-3xl text-goldprime">🙏</span>
+                    </div>
+                    <h3 class="font-scheherazade text-goldprime text-2xl mb-1">الرعاية والطقوس الكنسية</h3>
+                    <p class="text-sm text-gray-400">تحت رعاية وإشراف</p>
+                    <p class="font-scheherazade text-xl text-white font-bold mt-2">الراهب القس لوقا المحرقي</p>
+                    <p class="text-xs text-goldprime/60 mt-4 italic">"رتلوا للرب ترنيمة جديدة"</p>
+                </div>
+
+                <div class="bg-white/5 border border-white/10 rounded-3xl p-6">
+                    <h4 class="text-goldprime font-bold mb-3 font-scheherazade text-lg">📋 تذكيرات دورية للطلاب</h4>
+                    <ul class="text-xs text-gray-400 space-y-2 list-disc list-inside">
+                        <li>يجب مراجعة تسجيلات الألحان بانتظام أسبوعياً.</li>
+                        <li>امتحانات الشفهية تعقد بنهاية كل فصل طقسي.</li>
+                        <li>لأي استفسار يرجى التوجه لغرفة الإرشاد بالدير.</li>
+                    </ul>
+                </div>
+            </div>
+
+        </section>
+
+        <footer class="mt-12 text-center text-xs text-gray-500 py-6 border-t border-white/5">
+            Designed & Developed by <span class="text-goldprime">Peter Zakaria</span> © <span id="year"></span>
+        </footer>
+    </div>
+
+    <!-- Persistent Global Audio Node Player -->
+    <div class="audio-player-bar" id="globalAudioPlayer">
+        <div class="player-details text-xs font-cairo mb-2 flex justify-between items-center">
+            <span id="playerTrackTitle" class="truncate font-semibold text-white">تحديد الملف...</span>
+            <button class="player-close text-red-400 font-bold ml-4" onclick="closeAudioPlayer()">إغلاق ✖</button>
+        </div>
+        <audio id="mainAudioElement" class="w-full" controls controlsList="nodownload"></audio>
+    </div>
+
+    <!-- Full-screen Responsive Iframe Document Target View Modal -->
+    <div id="pdfViewerModal" class="hidden fixed inset-0 bg-darkblue z-[20000] flex flex-col">
+        <div class="pdf-header bg-purphaze border-b border-goldprime/20 p-4 flex justify-between items-center">
+            <button class="close-pdf-btn bg-goldprime text-darkblue px-5 py-2 rounded-xl font-bold font-cairo" onclick="closePDF()">إغلاق ↩️</button>
+            <div class="pdf-title text-goldprime font-bold font-scheherazade text-xl" id="pdfViewTitle">عرض الملف المنهجي</div>
+        </div>
+        <iframe class="pdf-frame w-full flex-grow border-none bg-white" id="pdfFrame" src=""></iframe>
+    </div>
+
+    <!-- Global Success/Error Modal -->
+    <div id="statusModal" class="hidden fixed inset-0 z-[21000] bg-black/70 backdrop-blur-sm items-center justify-center p-4">
+        <div class="w-full max-w-md bg-[#11152b] border border-goldprime/30 rounded-2xl p-6 shadow-2xl">
+            <div class="flex items-start gap-3">
+                <div id="statusModalIcon" class="w-10 h-10 rounded-full flex items-center justify-center text-xl bg-emerald-500/20 text-emerald-300">✓</div>
+                <div class="flex-1">
+                    <h3 id="statusModalTitle" class="text-goldprime font-bold text-lg">تمت العملية بنجاح</h3>
+                    <p id="statusModalMessage" class="text-sm text-gray-300 mt-2 leading-relaxed">تم تنفيذ الطلب.</p>
+                </div>
+            </div>
+            <div class="mt-5 flex justify-end">
+                <button onclick="closeStatusModal()" class="px-4 py-2 bg-goldprime text-darkblue rounded-lg font-bold text-sm">موافق</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Scripts logic -->
+    <script>
+        // ==========================================================================
+        // 1. SUPABASE CLIENT SETTINGS
+        // ==========================================================================
+        const SUPABASE_URL = "https://fxtdivrxslwplnamxvai.supabase.co"; 
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4dGRpdnJ4c2x3cGxuYW14dmFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NzQ5NjMsImV4cCI6MjA5NTA1MDk2M30.AfJWAmtZEpcS5nrRiZ199XVk5gBpItffVzE6iVGiS5E";
+
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        let currentUserSession = null;
+        let currentUserProfile = null;
+        const S3_LIST_CHUNK_SIZE = 25;
+
+        const YEAR_TITLES = {
+            "year1": "الفرقة الأولى",
+            "year2": "الفرقة الثانية",
+            "year3": "الفرقة الثالثة",
+            "year4": "الفرقة الرابعة",
+            "year5": "الفرقة الخامسة"
+        };
+
+        // ==========================================================================
+        // 2. RESILIENT ASYNC UTILITIES
+        // ==========================================================================
+        // Guarantees any Supabase database call completes or fails within a specific time limit, preventing infinite loaders
+        function withTimeout(promise, ms = 4000) {
+            return new Promise((resolve, reject) => {
+                const timer = setTimeout(() => reject(new Error("Network timeout")), ms);
+                promise.then(
+                    res => { clearTimeout(timer); resolve(res); },
+                    err => { clearTimeout(timer); reject(err); }
+                );
+            });
+        }
+
+        // ==========================================================================
+        // 3. LIFECYCLE & SPLASH CONTROL
+        // ==========================================================================
+        window.addEventListener('DOMContentLoaded', async () => {
+            createParticles();
+            document.getElementById('year').textContent = new Date().getFullYear();
+
+            // Secure session change distribution handler (Highly resilient background orchestration)
+            supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                try {
+                    console.log("Auth state transaction event verified:", event);
+                    if (session) {
+                        currentUserSession = session;
+                        
+                        // Try to parse cached local profile before loading network
+                        const cachedProfile = localStorage.getItem(`profile_${session.user.id}`);
+                        if (cachedProfile) {
+                            currentUserProfile = JSON.parse(cachedProfile);
+                        } else {
+                            currentUserProfile = {
+                                id: session.user.id,
+                                email: session.user.email,
+                                full_name: session.user.user_metadata?.full_name || "طالب",
+                                academic_year: "year1",
+                                role: "student"
+                            };
+                        }
+                        
+                        // Show workspace UI instantly without blocking
+                        showMainApp();
+                        
+                        // Asynchronously trigger profile synchronization on network
+                        fetchUserProfile(session.user.id);
+                    } else {
+                        currentUserSession = null;
+                        currentUserProfile = null;
+                        showAuthGateway();
+                    }
+                } catch (err) {
+                    console.error("Critical Auth loop exception intercepted:", err);
+                    showAuthGateway();
+                } finally {
+                    dismissSplash();
+                }
+            });
+
+            setTimeout(dismissSplash, 2000);
+        });
+
+        function dismissSplash() {
+            const splash = document.getElementById('splash');
+            if (splash) {
+                splash.classList.add('hidden');
+                setTimeout(() => splash.style.display = 'none', 600);
+            }
+        }
+
+        function showStatusModal(type, title, message) {
+            const modal = document.getElementById('statusModal');
+            const icon = document.getElementById('statusModalIcon');
+            const titleEl = document.getElementById('statusModalTitle');
+            const messageEl = document.getElementById('statusModalMessage');
+            if (!modal || !icon || !titleEl || !messageEl) return;
+
+            const isError = type === 'error';
+            icon.className = isError
+                ? 'w-10 h-10 rounded-full flex items-center justify-center text-xl bg-rose-500/20 text-rose-300'
+                : 'w-10 h-10 rounded-full flex items-center justify-center text-xl bg-emerald-500/20 text-emerald-300';
+            icon.textContent = isError ? '!' : '✓';
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeStatusModal() {
+            const modal = document.getElementById('statusModal');
+            if (!modal) return;
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        }
+
+        function notifySuccess(message, title = 'تمت العملية بنجاح') {
+            showStatusModal('success', title, message);
+        }
+
+        function notifyError(message, title = 'حدث خطأ') {
+            showStatusModal('error', title, message);
+        }
+
+        // ==========================================================================
+        // 4. SECURE AUTH REGISTRY PIPELINES
+        // ==========================================================================
+        let currentAuthMode = 'login';
+        function switchAuthMode(mode) {
+            currentAuthMode = mode;
+            const isReg = mode === 'register';
+            document.getElementById('tabLogin').classList.toggle('text-goldprime', !isReg);
+            document.getElementById('tabLogin').classList.toggle('border-goldprime', !isReg);
+            
+            document.getElementById('tabRegister').classList.toggle('text-goldprime', isReg);
+            document.getElementById('tabRegister').classList.toggle('border-goldprime', isReg);
+            
+            document.getElementById('registerMetaFields').classList.toggle('hidden', !isReg);
+            document.getElementById('authMessage').textContent = '';
+        }
+
+        async function handleAuthSubmit(event) {
+            event.preventDefault();
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const msgBox = document.getElementById('authMessage');
+            msgBox.textContent = 'جاري معالجة الطلب وتأكيد الهوية...';
+
+            try {
+                if (currentAuthMode === 'login') {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                } else {
+                    const fullName = document.getElementById('authFullName').value;
+                    const assignedYear = document.getElementById('authYearSelect').value;
+                    
+                    const { data, error } = await supabaseClient.auth.signUp({
+                        email,
+                        password,
+                        options: { data: { full_name: fullName } }
+                    });
+                    if (error) throw error;
+                    
+                    if (data.user) {
+                        const profileData = { 
+                            id: data.user.id, 
+                            email: email, 
+                            full_name: fullName, 
+                            academic_year: assignedYear, 
+                            role: 'student' 
+                        };
+                        localStorage.setItem(`profile_${data.user.id}`, JSON.stringify(profileData));
+                        
+                        await supabaseClient
+                            .from('profiles')
+                            .upsert([profileData], { onConflict: 'id' });
+                        
+                        msgBox.textContent = 'تم إعداد حسابك الكنسي بنجاح! يمكنك الآن تسجيل الدخول.';
+                        switchAuthMode('login');
+                    }
+                }
+            } catch (err) {
+                msgBox.textContent = `خطأ: ${err.message}`;
+            }
+        }
+
+        async function fetchUserProfile(uid) {
+            try {
+                // Fetch from Supabase with safety timeout wrapper
+                const { data, error } = await withTimeout(
+                    supabaseClient.from('profiles').select('*').eq('id', uid).single(),
+                    4000
+                );
+                
+                if (error) throw error;
+
+                if (data) {
+                    currentUserProfile = data;
+                    localStorage.setItem(`profile_${uid}`, JSON.stringify(data));
+                    renderProfileUI();
+                }
+            } catch (err) {
+                console.warn("Using local cache / metadata fallback because of:", err);
+                renderProfileUI();
+            }
+        }
+
+        function renderProfileUI() {
+            if (!currentUserProfile) return;
+            document.getElementById('assignedYearLabel').textContent = YEAR_TITLES[currentUserProfile.academic_year] || "غير محدد";
+            document.getElementById('headerUserWelcome').textContent = `أهلاً بك، ${currentUserProfile.full_name || 'يا رتّال الرب'}`;
+            
+            const adminCtrl = document.getElementById('adminToggleControl');
+            if (currentUserProfile.role === 'admin') {
+                adminCtrl.classList.remove('hidden');
+            } else {
+                adminCtrl.classList.add('hidden');
+            }
+        }
+
+        async function handleLogout() {
+            // Clean local profile states
+            if (currentUserProfile) {
+                localStorage.removeItem(`profile_${currentUserProfile.id}`);
+            }
+            closeAudioPlayer();
+            closePDF();
+            await supabaseClient.auth.signOut();
+            showAuthGateway();
+        }
+
+        function showMainApp() {
+            const authGateway = document.getElementById('authGateway');
+            authGateway.classList.add('hidden');
+            authGateway.classList.remove('flex');
+
+            const mainApp = document.getElementById('main');
+            mainApp.classList.remove('hidden');
+
+            renderProfileUI();
+            switchPortalTab('mySyllabus');
+        }
+
+        function showAuthGateway() {
+            const mainApp = document.getElementById('main');
+            mainApp.classList.add('hidden');
+
+            const authGateway = document.getElementById('authGateway');
+            authGateway.classList.remove('hidden');
+            authGateway.classList.add('flex');
+            
+            document.getElementById('authMessage').textContent = '';
+        }
+
+        function toggleAdminDashboard() {
+            const dashboard = document.getElementById('adminDashboardLayout');
+            dashboard.classList.toggle('hidden');
+            if (!dashboard.classList.contains('hidden')) {
+                switchAdminSubTab('media');
+            }
+        }
+
+        // ==========================================================================
+        // 5. ADMIN PANEL CONTROLLERS
+        // ==========================================================================
+        let currentAdminTab = 'media';
+        function switchAdminSubTab(tab) {
+            currentAdminTab = tab;
+            document.querySelectorAll('.admin-sub-panel').forEach(panel => panel.classList.add('hidden'));
+            
+            document.getElementById('subTabMediaBtn').className = "bg-white/10 text-white px-4 py-1.5 rounded-lg font-bold text-xs";
+            document.getElementById('subTabUsersBtn').className = "bg-white/10 text-white px-4 py-1.5 rounded-lg font-bold text-xs";
+            document.getElementById('subTabResultsBtn').className = "bg-white/10 text-white px-4 py-1.5 rounded-lg font-bold text-xs";
+
+            if (tab === 'media') {
+                document.getElementById('adminMediaPanel').classList.remove('hidden');
+                document.getElementById('subTabMediaBtn').className = "bg-goldprime text-darkblue px-4 py-1.5 rounded-lg font-bold text-xs";
+                loadAdminMediaRows();
+            } else if (tab === 'users') {
+                document.getElementById('adminUsersPanel').classList.remove('hidden');
+                document.getElementById('subTabUsersBtn').className = "bg-goldprime text-darkblue px-4 py-1.5 rounded-lg font-bold text-xs";
+                loadAdminUserRows();
+            } else if (tab === 'results') {
+                document.getElementById('adminResultsPanel').classList.remove('hidden');
+                document.getElementById('subTabResultsBtn').className = "bg-goldprime text-darkblue px-4 py-1.5 rounded-lg font-bold text-xs";
+                loadAdminResultsRows();
+            }
+        }
+
+        let localMediaCache = [];
+        async function loadAdminMediaRows() {
+            const listEl = document.getElementById('adminMediaList');
+            listEl.innerHTML = '<p class="text-xs text-gray-400">جاري تحميل الملفات المنهجية...</p>';
+
+            try {
+                const { data, error } = await withTimeout(
+                    supabaseClient.from('academic_content').select('*').order('created_at', { ascending: false }),
+                    4000
+                );
+
+                if (error) throw error;
+
+                localMediaCache = data || [];
+                renderAdminMedia();
+            } catch (err) {
+                console.error(err);
+                listEl.innerHTML = '<p class="text-xs text-red-400 font-bold">فشل جلب الملفات المنهجية من الخادم.</p>';
+            }
+        }
+
+        function renderAdminMedia() {
+            const listEl = document.getElementById('adminMediaList');
+            listEl.innerHTML = localMediaCache.map(item => `
+                <div class="flex flex-col p-4 bg-black/30 border border-white/5 rounded-2xl gap-3">
+                    <div class="space-y-1">
+                        <input type="text" value="${item.item_name}" onchange="renameMediaItem(${item.id}, this.value)" class="bg-black/40 border border-white/10 rounded px-2 py-1 text-goldprime text-xs font-bold w-full focus:border-goldprime focus:outline-none">
+                        <span class="text-gray-400 text-[10px] block">${YEAR_TITLES[item.year_key]} (${item.item_type === 'pdf' ? 'مستند PDF' : 'ملف لحن مسموع'})</span>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button onclick="deleteMediaRecord(${item.id}, '${item.file_url}')" class="text-rose-400 font-bold text-xs hover:underline">حذف الملف 🗑️</button>
+                    </div>
+                </div>
+            `).join('') || '<p class="text-xs text-gray-500 py-4 col-span-2 text-center font-bold">لا توجد ملفات مرفوعة حالياً.</p>';
+        }
+
+        async function renameMediaItem(id, newName) {
+            if(!newName.trim()) return;
+            try {
+                const { error } = await supabaseClient
+                    .from('academic_content')
+                    .update({ item_name: newName })
+                    .eq('id', id);
+
+                if (error) throw error;
+                notifySuccess('تم تحديث الاسم الجديد للملف بنجاح! ✏️');
+                await loadAdminMediaRows();
+                await loadDynamicContent();
+            } catch (err) {
+                notifyError(`فشل الحفظ: ${err.message}`);
+            }
+        }
+
+        async function handleAdminUpload(event) {
+            event.preventDefault();
+            const yearKey = document.getElementById('uploadYearKey').value;
+            const yearTitle = document.getElementById('uploadYearKey').options[document.getElementById('uploadYearKey').selectedIndex].text;
+            const itemType = document.getElementById('uploadItemType').value;
+            const itemName = document.getElementById('uploadItemName').value;
+            const fileInput = document.getElementById('uploadFileBinary').files[0];
+
+            if (!fileInput) return;
+
+            const progress = document.getElementById('progressBar');
+            if(progress) progress.classList.remove('hidden');
+
+            try {
+                const extension = fileInput.name.split('.').pop();
+                const uniqueId = `${yearKey}_${Date.now()}.${extension}`;
+                const destPath = `${itemType}s/${uniqueId}`;
+
+                const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                    .from('academic-files')
+                    .upload(destPath, fileInput);
+
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabaseClient.storage
+                    .from('academic-files')
+                    .getPublicUrl(destPath);
+
+                const { error: insertError } = await supabaseClient
+                    .from('academic_content')
+                    .insert([{
+                        year_key: yearKey,
+                        year_title: yearTitle,
+                        item_type: itemType,
+                        item_name: itemName,
+                        file_url: publicUrl
+                    }]);
+
+                if (insertError) throw insertError;
+
+                notifySuccess('تم رفع الملف بنجاح وإدراجه للطلاب! 🎉');
+                document.getElementById('adminUploadForm').reset();
+                await loadAdminMediaRows();
+                await loadDynamicContent();
+
+            } catch (err) {
+                notifyError(`فشل الرفع: ${err.message}`);
+            } finally {
+                if(progress) progress.classList.add('hidden');
+            }
+        }
+
+        async function deleteMediaRecord(id, fileUrl) {
+            if (!confirm('هل تريد حذف هذا الملف من خوادم السحابة نهائياً؟')) return;
+            try {
+                const parts = fileUrl.split('/academic-files/');
+                if (parts.length > 1) {
+                    await supabaseClient.storage.from('academic-files').remove([parts[1]]);
+                }
+                const { error } = await supabaseClient.from('academic_content').delete().eq('id', id);
+                if (error) throw error;
+                await loadAdminMediaRows();
+                await loadDynamicContent();
+            } catch (err) {
+                notifyError(`خطأ: ${err.message}`);
+            }
+        }
+
+        let localUsersCache = [];
+        async function loadAdminUserRows() {
+            const listEl = document.getElementById('adminUsersList');
+            listEl.innerHTML = '<p class="text-xs text-gray-500">جاري تحميل بيانات الطلاب المسجلين...</p>';
+
+            try {
+                const { data, error } = await withTimeout(
+                    supabaseClient.from('profiles').select('*').order('created_at', { ascending: false }),
+                    4000
+                );
+
+                if (error) throw error;
+
+                localUsersCache = data || [];
+                renderAdminUsers();
+            } catch (err) {
+                console.error(err);
+                listEl.innerHTML = '<p class="text-xs text-red-400">فشل تحميل سجل الطلاب.</p>';
+            }
+        }
+
+        function renderAdminUsers() {
+            const listEl = document.getElementById('adminUsersList');
+            listEl.innerHTML = localUsersCache.map(usr => `
+                <div class="p-4 bg-black/40 border border-white/10 rounded-2xl space-y-3 text-xs flex flex-col justify-between">
+                    <div class="space-y-1">
+                        <input type="text" value="${usr.full_name || 'طالب جديد'}" onchange="renameUserItem('${usr.id}', this.value)" class="bg-black/40 border border-white/10 rounded px-2 py-1 text-goldprime text-xs font-bold w-full focus:border-goldprime focus:outline-none">
+                        <span class="text-[10px] text-gray-400 block truncate">${usr.email}</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <select onchange="updateUserYear('${usr.id}', this.value)" class="bg-darkblue p-1.5 border border-white/10 rounded text-[10px] text-white flex-1 font-cairo">
+                            <option value="year1" ${usr.academic_year === 'year1' ? 'selected' : ''}>الفرقة الأولى</option>
+                            <option value="year2" ${usr.academic_year === 'year2' ? 'selected' : ''}>الفرقة الثانية</option>
+                            <option value="year3" ${usr.academic_year === 'year3' ? 'selected' : ''}>الفرقة الثالثة</option>
+                            <option value="year4" ${usr.academic_year === 'year4' ? 'selected' : ''}>الفرقة الرابعة</option>
+                            <option value="year5" ${usr.academic_year === 'year5' ? 'selected' : ''}>الفرقة الخامسة</option>
+                        </select>
+                        <select onchange="updateUserRole('${usr.id}', this.value)" class="bg-darkblue p-1.5 border border-white/10 rounded text-[10px] text-white w-20 font-cairo">
+                            <option value="student" ${usr.role === 'student' ? 'selected' : ''}>طالب</option>
+                            <option value="admin" ${usr.role === 'admin' ? 'selected' : ''}>أدمن ⚙️</option>
+                        </select>
+                        <button onclick="deleteUserProfile('${usr.id}')" class="text-rose-400 font-bold hover:underline px-1">حذف 🗑️</button>
+                    </div>
+                </div>
+            `).join('') || '<p class="text-xs text-gray-500 py-4 col-span-2 text-center">لا يوجد مستخدمون حالياً.</p>';
+        }
+
+        async function renameUserItem(uid, newName) {
+            if(!newName.trim()) return;
+            try {
+                const { error } = await supabaseClient
+                    .from('profiles')
+                    .update({ full_name: newName })
+                    .eq('id', uid);
+
+                if (error) throw error;
+                notifySuccess('تم تعديل اسم الطالب بنجاح! 👤');
+                await loadAdminUserRows();
+            } catch (err) {
+                notifyError(`خطأ: ${err.message}`);
+            }
+        }
+
+        function filterAdminUserList(val) {
+            const filtered = localUsersCache.filter(u => 
+                (u.full_name && u.full_name.toLowerCase().includes(val.toLowerCase())) || 
+                (u.email && u.email.toLowerCase().includes(val.toLowerCase()))
+            );
+            const listEl = document.getElementById('adminUsersList');
+            listEl.innerHTML = filtered.map(usr => `
+                <div class="p-4 bg-black/40 border border-white/10 rounded-2xl space-y-3 text-xs flex flex-col justify-between">
+                    <div class="space-y-1">
+                        <input type="text" value="${usr.full_name || 'طالب جديد'}" onchange="renameUserItem('${usr.id}', this.value)" class="bg-black/40 border border-white/10 rounded px-2 py-1 text-goldprime text-xs font-bold w-full focus:border-goldprime focus:outline-none font-cairo">
+                        <span class="text-[10px] text-gray-400 block truncate">${usr.email}</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <select onchange="updateUserYear('${usr.id}', this.value)" class="bg-darkblue p-1.5 border border-white/10 rounded text-[10px] text-white flex-1 font-cairo">
+                            <option value="year1" ${usr.academic_year === 'year1' ? 'selected' : ''}>الفرقة الأولى</option>
+                            <option value="year2" ${usr.academic_year === 'year2' ? 'selected' : ''}>الفرقة الثانية</option>
+                            <option value="year3" ${usr.academic_year === 'year3' ? 'selected' : ''}>الفرقة الثالثة</option>
+                            <option value="year4" ${usr.academic_year === 'year4' ? 'selected' : ''}>الفرقة الرابعة</option>
+                            <option value="year5" ${usr.academic_year === 'year5' ? 'selected' : ''}>الفرقة الخامسة</option>
+                        </select>
+                        <select onchange="updateUserRole('${usr.id}', this.value)" class="bg-darkblue p-1.5 border border-white/10 rounded text-[10px] text-white w-20 font-cairo">
+                            <option value="student" ${usr.role === 'student' ? 'selected' : ''}>طالب</option>
+                            <option value="admin" ${usr.role === 'admin' ? 'selected' : ''}>أدمن ⚙️</option>
+                        </select>
+                        <button onclick="deleteUserProfile('${usr.id}')" class="text-rose-400 font-bold hover:underline px-1">حذف 🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function handleAdminCreateUser(event) {
+            event.preventDefault();
+            const email = document.getElementById('newUserEmail').value;
+            const password = document.getElementById('newUserPassword').value;
+            const fullName = document.getElementById('newUserFullName').value;
+            const year = document.getElementById('newUserYear').value;
+            const role = document.getElementById('newUserRole').value;
+
+            try {
+                const { data, error } = await supabaseClient.auth.signUp({ 
+                    email, 
+                    password,
+                    options: { data: { full_name: fullName } }
+                });
+                if (error) throw error;
+
+                if (data.user) {
+                    const { error: profileError } = await supabaseClient
+                        .from('profiles')
+                        .upsert([{ id: data.user.id, email: email, full_name: fullName, academic_year: year, role: role }], { onConflict: 'id' });
+                    
+                    if (profileError) throw profileError;
+
+                    notifySuccess('تم إنشاء حساب الطالب الجديد بنجاح! 👤');
+                    document.getElementById('adminAddUserForm').reset();
+                    await loadAdminUserRows();
+                }
+            } catch (err) {
+                notifyError(`خطأ أثناء إنشاء مستخدم: ${err.message}`);
+            }
+        }
+
+        async function updateUserYear(uid, newYear) {
+            try {
+                const { error } = await supabaseClient
+                    .from('profiles')
+                    .update({ academic_year: newYear })
+                    .eq('id', uid);
+                
+                if (error) throw error;
+                notifySuccess('تم تعديل فرقة الطالب الدراسية.');
+                if (currentUserProfile && currentUserProfile.id === uid) {
+                    await fetchUserProfile(uid);
+                    await loadDynamicContent();
+                }
+            } catch (err) {
+                notifyError(`خطأ: ${err.message}`);
+            }
+        }
+
+        async function updateUserRole(uid, newRole) {
+            try {
+                const { error } = await supabaseClient
+                    .from('profiles')
+                    .update({ role: newRole })
+                    .eq('id', uid);
+                
+                if (error) throw error;
+                notifySuccess('تم تحديث صلاحية المسؤول للمستخدم.');
+                if (currentUserProfile && currentUserProfile.id === uid) {
+                    await fetchUserProfile(uid);
+                }
+            } catch (err) {
+                notifyError(`خطأ: ${err.message}`);
+            }
+        }
+
+        async function deleteUserProfile(uid) {
+            if (!confirm('سيتم حذف حساب الطالب المسجل نهائياً. هل ترغب بالاستمرار؟')) return;
+            try {
+                const { error } = await supabaseClient.from('profiles').delete().eq('id', uid);
+                if (error) throw error;
+                notifySuccess('تم حذف حساب الطالب بنجاح.');
+                await loadAdminUserRows();
+            } catch (err) {
+                notifyError(err.message);
+            }
+        }
+
+        let localResultsCache = [];
+        async function loadAdminResultsRows() {
+            const container = document.getElementById('adminResultsList');
+            container.innerHTML = '<p class="text-xs text-gray-400">جاري تحميل كشوف الدرجات...</p>';
+
+            try {
+                const { data, error } = await withTimeout(
+                    supabaseClient.from('results').select('*').order('created_at', { ascending: false }),
+                    4000
+                );
+
+                if (error) throw error;
+
+                localResultsCache = data || [];
+                renderAdminResults();
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = '<p class="text-xs text-red-400">فشل تحميل كشف الدرجات.</p>';
+            }
+        }
+
+        function renderAdminResults() {
+            const container = document.getElementById('adminResultsList');
+            container.innerHTML = localResultsCache.map(res => `
+                <div class="flex items-center justify-between p-3 bg-black/30 border border-white/5 rounded-xl text-xs gap-4">
+                    <div class="truncate">
+                        <strong class="text-goldprime block truncate">${res.student_name}</strong>
+                        <span class="text-gray-400 text-[10px] block truncate">${res.subject} (${res.grade}) - ${res.is_enabled ? 'ظاهرة للجميع' : 'محجوبة'}</span>
+                    </div>
+                    <button onclick="deleteSingleResult(${res.id})" class="text-red-400 font-bold hover:underline shrink-0">حذف</button>
+                </div>
+            `).join('') || '<p class="text-xs text-gray-500 py-4 col-span-2 text-center">لا توجد نتائج اختبارات مدخلة.</p>';
+        }
+
+        function filterAdminResultsList(val) {
+            const filtered = localResultsCache.filter(r => 
+                r.student_name.toLowerCase().includes(val.toLowerCase()) || 
+                r.subject.toLowerCase().includes(val.toLowerCase())
+            );
+            const container = document.getElementById('adminResultsList');
+            container.innerHTML = filtered.map(res => `
+                <div class="flex items-center justify-between p-3 bg-black/30 border border-white/5 rounded-xl text-xs gap-4">
+                    <div class="truncate">
+                        <strong class="text-goldprime block truncate">${res.student_name}</strong>
+                        <span class="text-gray-400 text-[10px] block truncate">${res.subject} (${res.grade}) - ${res.is_enabled ? 'ظاهرة للجميع' : 'محجوبة'}</span>
+                    </div>
+                    <button onclick="deleteSingleResult(${res.id})" class="text-red-400 font-bold hover:underline shrink-0">حذف</button>
+                </div>
+            `).join('');
+        }
+
+        async function processResultsCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const text = e.target.result;
+                    const rows = text.split('\n').map(row => row.trim()).filter(row => row.length > 0);
+                    
+                    if (rows.length < 2) {
+                        notifyError('ملف الـ CSV فارغ أو غير متوافق.');
+                        return;
+                    }
+
+                    const headers = rows[0].split(',').map(h => h.trim().toLowerCase());
+                    const emailIdx = headers.indexOf('email');
+                    const nameIdx = headers.indexOf('name');
+                    const subjectIdx = headers.indexOf('subject');
+                    const gradeIdx = headers.indexOf('grade');
+                    const statusIdx = headers.indexOf('status');
+
+                    if (emailIdx === -1 || nameIdx === -1 || subjectIdx === -1 || gradeIdx === -1) {
+                        notifyError('تأكد من وجود رؤوس الأعمدة: email, name, subject, grade في السطر الأول');
+                        return;
+                    }
+
+                    const bulkData = [];
+                    for (let i = 1; i < rows.length; i++) {
+                        const cols = rows[i].split(',').map(c => c.trim());
+                        if (cols.length >= 4) {
+                            bulkData.push({
+                                student_email: cols[emailIdx],
+                                student_name: cols[nameIdx],
+                                subject: cols[subjectIdx],
+                                grade: cols[gradeIdx],
+                                status: statusIdx !== -1 ? cols[statusIdx] : 'ناجح',
+                                is_enabled: true
+                            });
+                        }
+                    }
+
+                    if (bulkData.length === 0) {
+                        notifyError('لم يتم العثور على سطور بيانات صالحة.');
+                        return;
+                    }
+
+                    const { error } = await supabaseClient.from('results').insert(bulkData);
+                    if (error) throw error;
+
+                    notifySuccess(`تم استيراد ${bulkData.length} سجل درجات بنجاح! 📊`);
+                    await loadAdminResultsRows();
+                } catch(err) {
+                    notifyError(`خطأ أثناء دمج السجل: ${err.message}`);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function toggleResultsSystem(enableState) {
+            try {
+                const { error } = await supabaseClient
+                    .from('results')
+                    .update({ is_enabled: enableState })
+                    .neq('id', 0);
+
+                if (error) throw error;
+                notifySuccess(enableState ? 'تم تفعيل كشوف الدرجات والنتائج لجميع الطلاب! ✅' : 'تم حجب درجات الاختبارات بنجاح. 🔒');
+                await loadAdminResultsRows();
+            } catch (err) {
+                notifyError(`خطأ: ${err.message}`);
+            }
+        }
+
+        async function clearAllResults() {
+            if (!confirm('هل تريد حذف قاعدة بيانات النتائج بالكامل؟')) return;
+            try {
+                const { error } = await supabaseClient.from('results').delete().neq('id', 0);
+                if (error) throw error;
+                notifySuccess('تم حذف جميع النتائج بنجاح.');
+                await loadAdminResultsRows();
+            } catch (err) {
+                notifyError(err.message);
+            }
+        }
+
+        async function deleteSingleResult(id) {
+            try {
+                const { error } = await supabaseClient.from('results').delete().eq('id', id);
+                if (error) throw error;
+                notifySuccess('تم حذف النتيجة بنجاح.');
+                await loadAdminResultsRows();
+            } catch (err) {
+                notifyError(err.message);
+            }
+        }
+
+        // ==========================================================================
+        // 6. STUDENT NAVIGATION SYSTEM
+        // ==========================================================================
+        function switchPortalTab(tabName) {
+            document.querySelectorAll('.portal-tab-panel').forEach(pane => pane.classList.add('hidden'));
+            
+            document.getElementById('tabMySyllabusBtn').className = "py-3 px-5 font-bold text-md md:text-lg text-gray-400 hover:text-white transition-colors whitespace-nowrap";
+            document.getElementById('tabMyResultsBtn').className = "py-3 px-5 font-bold text-md md:text-lg text-gray-400 hover:text-white transition-colors whitespace-nowrap";
+            document.getElementById('tabSearchStudentsBtn').className = "py-3 px-5 font-bold text-md md:text-lg text-gray-400 hover:text-white transition-colors whitespace-nowrap";
+
+            if (tabName === 'mySyllabus') {
+                document.getElementById('paneMySyllabus').classList.remove('hidden');
+                document.getElementById('tabMySyllabusBtn').className = "py-3 px-5 font-bold text-md md:text-lg text-goldprime border-b-2 border-goldprime whitespace-nowrap";
+                loadDynamicContent();
+            } else if (tabName === 'myResults') {
+                document.getElementById('paneMyResults').classList.remove('hidden');
+                document.getElementById('tabMyResultsBtn').className = "py-3 px-5 font-bold text-md md:text-lg text-goldprime border-b-2 border-goldprime whitespace-nowrap";
+                fetchPersonalResults();
+            } else if (tabName === 'searchStudents') {
+                document.getElementById('paneSearchStudents').classList.remove('hidden');
+                document.getElementById('tabSearchStudentsBtn').className = "py-3 px-5 font-bold text-md md:text-lg text-goldprime border-b-2 border-goldprime whitespace-nowrap";
+            }
+        }
+
+        async function loadDynamicContent() {
+            if (!currentUserProfile) return;
+            const yearKey = currentUserProfile.academic_year;
+
+            // Optimistically load cached catalog first
+            const cachedSyllabus = localStorage.getItem(`syllabus_${yearKey}`);
+            if (cachedSyllabus) {
+                renderSyllabusUI(JSON.parse(cachedSyllabus));
+            }
+
+            try {
+                let offset = 0;
+                let hasRenderedNetworkData = false;
+                let allItems = [];
+
+                while (true) {
+                    const { data, error } = await withTimeout(
+                        supabaseClient
+                            .from('academic_content')
+                            .select('*')
+                            .eq('year_key', yearKey)
+                            .order('created_at', { ascending: true })
+                            .range(offset, offset + S3_LIST_CHUNK_SIZE - 1),
+                        5000
+                    );
+
+                    if (error) throw error;
+
+                    const chunk = data || [];
+                    if (chunk.length === 0) {
+                        if (!hasRenderedNetworkData && !cachedSyllabus) {
+                            renderSyllabusUI([], false);
+                        }
+                        break;
+                    }
+
+                    allItems = allItems.concat(chunk);
+                    renderSyllabusUI(chunk, hasRenderedNetworkData);
+                    hasRenderedNetworkData = true;
+
+                    if (chunk.length < S3_LIST_CHUNK_SIZE) {
+                        break;
+                    }
+                    offset += S3_LIST_CHUNK_SIZE;
+                }
+
+                if (allItems.length > 0) {
+                    localStorage.setItem(`syllabus_${yearKey}`, JSON.stringify(allItems));
+                }
+
+            } catch (err) {
+                console.warn("Using offline catalog cache due to sync bypass:", err);
+                if (!cachedSyllabus) {
+                    document.getElementById('userPdfsList').innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">لا توجد مناهج ورقية حالياً.</p>';
+                    document.getElementById('userAudiosList').innerHTML = '<p class="text-xs text-gray-500 py-4 text-center">لا توجد ألحان صوتية حالياً.</p>';
+                }
+            }
+        }
+
+        function renderSyllabusUI(data, append = false) {
+            const pdfsList = document.getElementById('userPdfsList');
+            const audiosList = document.getElementById('userAudiosList');
+
+            const pdfs = data.filter(item => item.item_type === 'pdf');
+            const audios = data.filter(item => item.item_type === 'audio');
+
+            const pdfHtml = pdfs.map(p => `
+                <div class="asset-item flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/5 hover:border-goldprime/30 transition-all cursor-pointer" onclick="openPDF('${p.file_url}','${p.item_name}', event)">
+                    <span>📄 ${p.item_name}</span>
+                    <span class="action-lbl text-[10px] md:text-xs">عرض وقراءة</span>
+                </div>
+            `).join('');
+
+            const audioHtml = audios.map(a => `
+                <div class="asset-item flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/5 hover:border-goldprime/30 transition-all cursor-pointer" onclick="openAudio('${a.file_url}','${a.item_name}', event)">
+                    <span>🔊 ${a.item_name}</span>
+                    <span class="action-lbl text-[10px] md:text-xs" style="background:rgba(46,213,115,0.15); color:#2ed573">استماع وإلقاء</span>
+                </div>
+            `).join('');
+
+            if (!append) {
+                pdfsList.innerHTML = pdfHtml || '<p class="text-xs text-gray-500 py-4 text-center">لا توجد مناهج مرفوعة لهذه الفرقة حالياً.</p>';
+                audiosList.innerHTML = audioHtml || '<p class="text-xs text-gray-500 py-4 text-center">لا توجد ألحان صوتية مرفوعة لهذه الفرقة حالياً.</p>';
+                return;
+            }
+
+            if (pdfHtml) {
+                if (pdfsList.textContent.includes('لا توجد مناهج مرفوعة')) {
+                    pdfsList.innerHTML = '';
+                }
+                pdfsList.insertAdjacentHTML('beforeend', pdfHtml);
+            }
+
+            if (audioHtml) {
+                if (audiosList.textContent.includes('لا توجد ألحان صوتية مرفوعة')) {
+                    audiosList.innerHTML = '';
+                }
+                audiosList.insertAdjacentHTML('beforeend', audioHtml);
+            }
+        }
+
+        async function fetchPersonalResults() {
+            const container = document.getElementById('resultsContentBlock');
+            const userEmail = currentUserProfile?.email || currentUserSession?.user?.email;
+
+            if (!userEmail) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-red-400 space-y-2">
+                        <span class="text-4xl block">⚠️</span>
+                        <p>عذراً، لم نتمكن من العثور على البريد الإلكتروني الخاص بك لاسترجاع النتائج.</p>
+                    </div>`;
+                return;
+            }
+
+            // Step 1: Try reading from local storage first to display instantly
+            const cachedResults = localStorage.getItem(`results_${userEmail}`);
+            if (cachedResults) {
+                console.log("Offline results fetched from cache first:", userEmail);
+                renderResultsTable(JSON.parse(cachedResults));
+            } else {
+                container.innerHTML = '<p class="text-center text-gray-400 py-6">جاري استرجاع درجاتك المعتمدة...</p>';
+            }
+
+            // Step 2: Fetch and update with safety timeout to prevent freeze
+            try {
+                console.log("Sending network query to Supabase for results of:", userEmail);
+                
+                const { data, error } = await withTimeout(
+                    supabaseClient
+                        .from('results')
+                        .select('*')
+                        .eq('student_email', userEmail)
+                        .eq('is_enabled', true),
+                    4000
+                );
+
+                if (error) throw error;
+
+                // Sync cache and re-render beautifully
+                const updatedData = data || [];
+                localStorage.setItem(`results_${userEmail}`, JSON.stringify(updatedData));
+                renderResultsTable(updatedData);
+
+            } catch (err) {
+                console.warn("Supabase bypass or timeout triggered. Sticking to cache.", err);
+                // If there's absolutely no cache either, show the standard lock warning gracefully
+                if (!cachedResults) {
+                    container.innerHTML = `
+                        <div class="text-center py-8 text-gray-500 space-y-2">
+                            <span class="text-4xl block">🔒</span>
+                            <p>لا توجد نتائج اختبارات منشورة لبريدك الإلكتروني حالياً.</p>
+                            <p class="text-xs text-gray-600">سيقوم المشرف بنشر كشوف الدرجات والتقديرات للجميع فور جاهزيتها.</p>
+                        </div>`;
+                }
+            }
+        }
+
+        function renderResultsTable(data) {
+            const container = document.getElementById('resultsContentBlock');
+            if (!data || data.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500 space-y-2">
+                        <span class="text-4xl block">🔒</span>
+                        <p>لا توجد نتائج اختبارات منشورة لبريدك الإلكتروني حالياً.</p>
+                        <p class="text-xs text-gray-600">سيقوم المشرف بنشر كشوف الدرجات والتقديرات للجميع فور جاهزيتها.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead>
+                            <tr class="border-b border-white/10 text-goldprime font-bold">
+                                <th class="p-3">المادة / اللحن</th>
+                                <th class="p-3">التقدير الكلي</th>
+                                <th class="p-3">النتيجة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map(item => `
+                                <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                    <td class="p-3 font-semibold">${item.subject}</td>
+                                    <td class="p-3 text-goldprime font-black">${item.grade}</td>
+                                    <td class="p-3">
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-bold ${item.status === 'ناجح' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}">${item.status}</span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        let rosterTimeout;
+        async function queryStudentRoster(query) {
+            clearTimeout(rosterTimeout);
+            const resultsBox = document.getElementById('rosterResults');
+            
+            if (!query.trim()) {
+                resultsBox.innerHTML = '<p class="text-center text-gray-500 py-6">اكتب اسماً في حقل البحث للبدء...</p>';
+                return;
+            }
+
+            rosterTimeout = setTimeout(async () => {
+                resultsBox.innerHTML = '<p class="text-center text-gray-400 py-6">جاري البحث في قاعدة البيانات المفتوحة...</p>';
+
+                try {
+                    const { data, error } = await withTimeout(
+                        supabaseClient
+                            .from('profiles')
+                            .select('full_name, academic_year')
+                            .ilike('full_name', `%${query}%`)
+                            .limit(10),
+                        4000
+                    );
+
+                    if (error) throw error;
+
+                    if (!data || data.length === 0) {
+                        resultsBox.innerHTML = '<p class="text-center text-red-400 py-6">لا توجد نتائج مطابقة لطلب البحث في سجل المعهد.</p>';
+                        return;
+                    }
+
+                    resultsBox.innerHTML = data.map(st => `
+                        <div class="p-4 bg-white/5 border border-white/5 rounded-xl flex justify-between items-center text-sm">
+                            <strong>${st.full_name}</strong>
+                            <span class="px-3 py-1 bg-goldprime/10 text-goldprime rounded-full text-xs font-bold">${YEAR_TITLES[st.academic_year]}</span>
+                        </div>
+                    `).join('');
+                } catch (err) {
+                    console.error(err);
+                    resultsBox.innerHTML = '<p class="text-center text-red-400 py-6 font-bold">حدث خطأ أثناء إجراء عملية البحث.</p>';
+                }
+            }, 300);
+        }
+
+        // ==========================================================================
+        // 7. UI UTILITIES
+        // ==========================================================================
+        function openAudio(url, trackTitle, event) {
+            triggerSparkle(event);
+            const player = document.getElementById('globalAudioPlayer');
+            const audioSource = document.getElementById('mainAudioElement');
+            document.getElementById('playerTrackTitle').textContent = trackTitle;
+            audioSource.preload = 'metadata';
+            audioSource.src = url;
+            player.classList.add('active');
+            audioSource.play();
+        }
+
+        function closeAudioPlayer() {
+            const player = document.getElementById('globalAudioPlayer');
+            player.classList.remove('active');
+            document.getElementById('mainAudioElement').pause();
+        }
+
+        function openPDF(url, bn, event){
+            triggerSparkle(event);
+            document.getElementById('pdfViewTitle').textContent = bn;
+            document.getElementById('pdfFrame').src = url;
+            document.getElementById('pdfViewerModal').classList.remove('hidden');
+        }
+
+        function closePDF(){
+            document.getElementById('pdfViewerModal').classList.add('hidden');
+            document.getElementById('pdfFrame').src = "";
+        }
+
+        function triggerSparkle(event) {
+            if(!event) return;
+            const s = document.createElement('div');
+            s.className = 'star-burst';
+            s.textContent = '✨';
+            s.style.fontSize = '2rem';
+            s.style.left = (event.clientX || event.pageX) - 15 + 'px';
+            s.style.top = (event.clientY || event.pageY) - 15 + 'px';
+            document.body.appendChild(s);
+            setTimeout(() => s.remove(), 600);
+        }
+
+        function createParticles() {
+            const c = document.getElementById('particles');
+            if(!c) return;
+            for(let i = 0; i < 20; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                p.style.width = '4px';
+                p.style.height = '4px';
+                p.style.left = Math.random() * 100 + '%';
+                p.style.animationDuration = (Math.random() * 10 + 8) + 's';
+                c.appendChild(p);
+            }
+        }
+    </script>
+</body>
+</html>
